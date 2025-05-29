@@ -154,16 +154,37 @@ def evaluate_model(model, tokenizer, data_path):
 def train_model(model_source, model_name, model_path, data_file, train_batch_size, eval_batch_size, num_epochs):
     if data_file is None:
         return "錯誤：請上傳數據檔案！", None, None, None, None, None
-    
-    data_path = data_file.name
+
+# 驗證 JSON 檔案
+    try:
+        # 讀取檔案內容
+        file_content = data_file.read().decode("utf-8")
+        # 將檔案內容寫入臨時檔案
+        data_path = f"temp_{data_file.name}"
+        with open(data_path, "w", encoding="utf-8") as f:
+            f.write(file_content)
+        # 驗證 JSON 格式
+        json_data = json.loads(file_content)
+        # 檢查結構
+        if not isinstance(json_data, list) or not json_data:
+            return "錯誤：JSON 檔案必須是一個非空陣列！", None, None, None, None, None
+        for item in json_data:
+            if not isinstance(item, dict) or "text" not in item or "label" not in item:
+                return "錯誤：JSON 檔案每筆資料必須包含 'text' 和 'label' 欄位！", None, None, None, None, None
+            if not isinstance(item["label"], int) or item["label"] not in [0, 1, 2, 3]:
+                return "錯誤：'label' 必須是 0, 1, 2 或 3 的整數！", None, None, None, None, None
+    except json.JSONDecodeError:
+        return "錯誤：上傳的檔案不是有效的 JSON 格式！", None, None, None, None, None
+    except UnicodeDecodeError:
+        return "錯誤：檔案編碼錯誤，請確保檔案使用 UTF-8 編碼！", None, None, None, None, None
     
     try:
-        tokenizer, model = load_model(model_source, model_name=model_name, model_path=model_path)
-    except ValueError as e:
-        return f"錯誤：{str(e)}", None, None, None, None, None
-    
-    dataset = load_dataset("json", data_files=data_path)
-    all_data = list(dataset["train"])
+        dataset = load_dataset("json", data_files=data_path)
+        all_data = list(dataset["train"])
+        if not all_data:
+            return "錯誤：JSON 檔案無有效資料！", None, None, None, None, None
+    except Exception as e:
+        return f"錯誤：無法載入資料集，原因：{str(e)}", None, None, None, None, None
     train_data, val_data = train_test_split(all_data, test_size=0.2, random_state=42)
     
     def preprocess_function(examples):
@@ -401,6 +422,7 @@ if page == "模型訓練與評估":
         model_path = st.text_input("自定義模型路徑", placeholder="請輸入模型路徑（例如 ./my_model）")
     
     data_file = st.file_uploader("上傳數據檔案（JSON格式）", type=["json"])
+    st.info("請上傳 JSON 檔案，格式應為：[{'text': '示例文字', 'label': 0}, ...]，其中 label 為 0, 1, 2 或 3，且檔案大小不超過 50MB。")
     
     # 添加訓練參數調整區域
     st.subheader("訓練參數設定")
