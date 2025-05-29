@@ -3,7 +3,7 @@ import json
 import torch
 from transformers import AutoTokenizer, AutoModelForSequenceClassification, TrainingArguments, Trainer
 from transformers.trainer_callback import TrainerCallback
-from datasets import load_dataset
+from datasets import load_dataset, Features, Value, ClassLabel
 import seaborn as sns
 import numpy as np
 from lime.lime_text import LimeTextExplainer
@@ -174,6 +174,12 @@ def train_model(model_source, model_name, model_path, data_file, train_batch_siz
                 return "錯誤：JSON 檔案每筆資料必須包含 'text' 和 'label' 欄位！", None, None, None, None, None
             if not isinstance(item["label"], int) or item["label"] not in [0, 1, 2, 3]:
                 return "錯誤：'label' 必須是 0, 1, 2 或 3 的整數！", None, None, None, None, None
+                
+        # 使用唯一臨時檔案名稱避免衝突
+        import uuid
+        data_path = f"temp_{uuid.uuid4()}_{data_file.name}"
+        with open(data_path, "w", encoding="utf-8") as f:
+            f.write(file_content)
     except json.JSONDecodeError:
         return "錯誤：上傳的檔案不是有效的 JSON 格式！", None, None, None, None, None
     except UnicodeDecodeError:
