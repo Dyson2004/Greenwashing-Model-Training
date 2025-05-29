@@ -1,5 +1,5 @@
 streamlit
-torch==2.4.0
+torch==2.7.0
 transformers
 datasets
 seaborn
