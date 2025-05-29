@@ -185,13 +185,24 @@ def train_model(model_source, model_name, model_path, data_file, train_batch_siz
     except UnicodeDecodeError:
         return "錯誤：檔案編碼錯誤，請確保檔案使用 UTF-8 編碼！", None, None, None, None, None
     
+    # 明確指定 features
+    features = Features({
+        "text": Value("string"),
+        "label": ClassLabel(num_classes=4, names=["低風險漂綠", "中風險漂綠", "高風險漂綠", "極高風險漂綠"])
+    })
+    
     try:
-        dataset = load_dataset("json", data_files=data_path)
+        # 禁用緩存
+        dataset = load_dataset("json", data_files=data_path, features=features, cache_dir=None)
         all_data = list(dataset["train"])
         if not all_data:
-            return "錯誤：JSON 檔案無有效資料！", None, None, None, None, None
+            return "錯誤：資料集無有效資料！", None, None, None, None, None
     except Exception as e:
         return f"錯誤：無法載入資料集，原因：{str(e)}", None, None, None, None, None
+    finally:
+        if os.path.exists(data_path):
+            os.remove(data_path)  # 清理臨時檔案
+            
     train_data, val_data = train_test_split(all_data, test_size=0.2, random_state=42)
     
     def preprocess_function(examples):
